@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Primary — sky-600 */
+  --color-primary: oklch(54.6% 0.194 240.2);
+  --color-primary-hover: oklch(49.2% 0.178 240.3);
+  --color-primary-light: oklch(92% 0.06 240.2);
+
+  /* Semantic */
+  --color-success: oklch(57.8% 0.165 152.8);   /* emerald-600 */
+  --color-danger: oklch(57.7% 0.22 27.3);       /* red-600 */
+  --color-warning: oklch(73.7% 0.19 87.5);      /* yellow-500 */
+
+  /* Surface */
+  --color-surface: oklch(100% 0 0);             /* white */
+  --color-surface-muted: oklch(97.8% 0 0);      /* slate-50 */
+  --color-border: oklch(91.8% 0.005 264.5);     /* slate-200 */
+  --color-text: oklch(22.8% 0.012 264.5);       /* slate-900 */
+  --color-text-muted: oklch(55.4% 0.015 264.5); /* slate-500 */
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Card utility */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+/* Form input utility */
+.input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: var(--color-surface);
+}
+
+.input:focus {
+  border-color: oklch(54.6% 0.194 240.2);
+  box-shadow: 0 0 0 2px oklch(92% 0.06 240.2);
+}
