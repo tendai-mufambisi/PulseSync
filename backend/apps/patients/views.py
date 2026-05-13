@@ -1,6 +1,8 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q, Value
+from django.db.models.functions import Replace
 from .models import Patient, ClinicalRecord
 from .serializers import PatientSerializer, PatientListSerializer, ClinicalRecordSerializer
 from apps.accounts.permissions import HasAnyRole, IsSystemAdmin
@@ -20,10 +22,32 @@ class PatientViewSet(viewsets.ModelViewSet):
         qs = Patient.objects.all()
         national_id = self.request.query_params.get('national_id', '').strip()
         search = self.request.query_params.get('search', '').strip()
+        q = self.request.query_params.get('q', '').strip()
+
         if national_id:
-            qs = qs.filter(national_id__icontains=national_id)
+            # Normalize: strip dash so "632400679R42" matches "63-2400679R42"
+            normalized = national_id.replace('-', '')
+            qs = qs.annotate(
+                _id_nodash=Replace('national_id', Value('-'), Value(''))
+            ).filter(
+                Q(national_id__icontains=national_id) |
+                Q(_id_nodash__icontains=normalized)
+            )
+
         if search:
             qs = qs.filter(full_name__icontains=search)
+
+        if q:
+            # Combined search across name and national ID (with dash normalization)
+            q_nodash = q.replace('-', '')
+            qs = qs.annotate(
+                _id_nodash=Replace('national_id', Value('-'), Value(''))
+            ).filter(
+                Q(full_name__icontains=q) |
+                Q(national_id__icontains=q) |
+                Q(_id_nodash__icontains=q_nodash)
+            )
+
         return qs
 
     def perform_create(self, serializer):
