@@ -197,8 +197,8 @@ function StaffList() {
   }
 
   const availableRoles: UserRole[] = isSystemAdmin
-    ? ['system_admin', 'hospital_admin', 'doctor', 'nurse']
-    : ['doctor', 'nurse']
+    ? ['system_admin', 'hospital_admin', 'doctor', 'nurse', 'paramedic']
+    : ['doctor', 'nurse', 'paramedic']
 
   // Group staff by hospital for system admin view
   const grouped = isSystemAdmin && staff

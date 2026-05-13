@@ -7,7 +7,7 @@ import type { Patient, ClinicalRecord } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { RoleGate } from '../components/RoleGate'
 import { PageSpinner, ErrorState, EmptyState, Spinner } from '../components/States'
-import { ArrowLeft, Trash2, Plus, Pencil, X, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, Pencil, X, AlertTriangle, Phone, ShieldAlert } from 'lucide-react'
 
 export const patientDetailRoute = createRoute({
   getParentRoute: () => authedRoute,
@@ -73,6 +73,11 @@ function PatientDetailPage() {
 
   if (isLoading) return <PageSpinner />
   if (isError || !patient) return <ErrorState message="Patient not found or failed to load." />
+
+  // Paramedics see a stripped-down emergency view — backend already returns safe fields only
+  if (hasRole('paramedic')) {
+    return <ParamedicView patient={patient} onBack={() => navigate({ to: '/patients' })} />
+  }
 
   const handleEdit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -470,6 +475,138 @@ function Info({
       >
         {value}
       </p>
+    </div>
+  )
+}
+
+// ── Paramedic-only view ───────────────────────────────────────────────────────
+function ParamedicView({ patient, onBack }: { patient: Patient; onBack: () => void }) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      {/* Header */}
+      <div className="mb-5 flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={20} className="text-red-600" />
+          <span className="text-sm font-semibold uppercase tracking-wide text-red-600">
+            Paramedic View — Emergency Data Only
+          </span>
+        </div>
+      </div>
+
+      {/* Identity */}
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-900">{patient.full_name}</h1>
+        <div className="mt-2 flex flex-wrap gap-5 text-sm">
+          <span className="text-slate-500">
+            DOB: <strong className="text-slate-800">{patient.date_of_birth}</strong>
+          </span>
+          <span className="text-slate-500">
+            Blood Type:{' '}
+            <strong className="text-2xl font-extrabold text-red-600">{patient.blood_type}</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* Critical medical */}
+      <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-5">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-700">
+          ⚠ Critical Medical Information
+        </h2>
+        <ERow
+          label="Allergies"
+          value={patient.allergies || 'None reported'}
+          danger={!!patient.allergies}
+        />
+        <ERow
+          label="Chronic Conditions"
+          value={patient.chronic_conditions || 'None reported'}
+        />
+        <ERow
+          label="Critical Conditions"
+          value={patient.critical_conditions || 'None reported'}
+        />
+      </div>
+
+      {/* Next of kin */}
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+          Next of Kin
+        </h2>
+        {patient.next_of_kin_name ? (
+          <>
+            <ERow
+              label="Name"
+              value={`${patient.next_of_kin_name}${patient.next_of_kin_relationship ? ' (' + patient.next_of_kin_relationship + ')' : ''}`}
+            />
+            <ERow label="Phone" value={patient.next_of_kin_phone || '—'} phone={!!patient.next_of_kin_phone} />
+            {patient.next_of_kin_alt_phone && (
+              <ERow label="Alt Phone" value={patient.next_of_kin_alt_phone} phone />
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-slate-400">No next of kin recorded.</p>
+        )}
+      </div>
+
+      {/* Additional emergency contacts */}
+      {(patient.emergency_contact || patient.emergency_contact_2_name || patient.emergency_contact_3_name) && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Additional Emergency Contacts
+          </h2>
+          {patient.emergency_contact && (
+            <ERow label="Contact" value={patient.emergency_contact} />
+          )}
+          {patient.emergency_contact_2_name && (
+            <ERow
+              label="Contact 2"
+              value={`${patient.emergency_contact_2_name}${patient.emergency_contact_2_phone ? ' — ' + patient.emergency_contact_2_phone : ''}`}
+              phone={!!patient.emergency_contact_2_phone}
+            />
+          )}
+          {patient.emergency_contact_3_name && (
+            <ERow
+              label="Contact 3"
+              value={`${patient.emergency_contact_3_name}${patient.emergency_contact_3_phone ? ' — ' + patient.emergency_contact_3_phone : ''}`}
+              phone={!!patient.emergency_contact_3_phone}
+            />
+          )}
+        </div>
+      )}
+
+      <p className="text-center text-xs text-slate-400">
+        This access has been logged. Paramedic read-only view.
+      </p>
+    </div>
+  )
+}
+
+function ERow({
+  label,
+  value,
+  danger,
+  phone,
+}: {
+  label: string
+  value: string
+  danger?: boolean
+  phone?: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-slate-100 py-2 last:border-0">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="flex items-center gap-2">
+        {phone && <Phone size={13} className="shrink-0 text-green-600" />}
+        <p className={`text-sm font-medium ${danger ? 'font-bold text-red-700' : 'text-slate-800'}`}>
+          {value}
+        </p>
+      </div>
     </div>
   )
 }

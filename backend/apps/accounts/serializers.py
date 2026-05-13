@@ -110,7 +110,7 @@ class RoleUpdateSerializer(serializers.ModelSerializer):
         fields = ('role',)
 
     def validate_role(self, value):
-        if value not in (Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN, Role.DOCTOR, Role.NURSE):
+        if value not in (Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN, Role.DOCTOR, Role.NURSE, Role.PARAMEDIC):
             raise serializers.ValidationError('Invalid role.')
         return value
 

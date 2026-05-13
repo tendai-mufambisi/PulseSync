@@ -14,7 +14,7 @@ export const usersRoute = createRoute({
   component: UsersPage,
 })
 
-const ROLE_OPTIONS: UserRole[] = ['system_admin', 'hospital_admin', 'doctor', 'nurse']
+const ROLE_OPTIONS: UserRole[] = ['system_admin', 'hospital_admin', 'doctor', 'nurse', 'paramedic']
 const EMPTY_FORM = { email: '', full_name: '', password: '', role: 'nurse' as UserRole, hospital: '' }
 
 function UsersPage() {

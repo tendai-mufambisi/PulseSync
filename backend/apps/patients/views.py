@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from .models import Patient, ClinicalRecord
-from .serializers import PatientSerializer, PatientListSerializer, ClinicalRecordSerializer
+from .serializers import (
+    PatientSerializer, PatientListSerializer,
+    ClinicalRecordSerializer, ParamedicPatientSerializer,
+)
 from apps.accounts.permissions import HasAnyRole, IsSystemAdmin
 from apps.accounts.models import Role
 from apps.audit.utils import log_action
@@ -16,6 +19,8 @@ class PatientViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list':
             return PatientListSerializer
+        if getattr(self.request.user, 'role', None) == Role.PARAMEDIC:
+            return ParamedicPatientSerializer
         return PatientSerializer
 
     def get_queryset(self):
@@ -50,6 +55,32 @@ class PatientViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    def _deny_paramedic(self, request):
+        if request.user.role == Role.PARAMEDIC:
+            return Response(
+                {'detail': 'Paramedics have read-only access to emergency patient data.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def create(self, request, *args, **kwargs):
+        denial = self._deny_paramedic(request)
+        if denial:
+            return denial
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        denial = self._deny_paramedic(request)
+        if denial:
+            return denial
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        denial = self._deny_paramedic(request)
+        if denial:
+            return denial
+        return super().partial_update(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(
             created_by=self.request.user,
@@ -66,15 +97,27 @@ class PatientViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         patient = self.get_object()
-        log_action(
-            request.user, patient,
-            f"viewed patient profile: {patient.full_name}",
-            category='patient', severity='info', request=request,
-        )
+        if request.user.role == Role.PARAMEDIC:
+            log_action(
+                request.user, patient,
+                f"PARAMEDIC_ACCESS: {patient.full_name} (national_id={patient.national_id})",
+                category='emergency', severity='warning', request=request,
+            )
+        else:
+            log_action(
+                request.user, patient,
+                f"viewed patient profile: {patient.full_name}",
+                category='patient', severity='info', request=request,
+            )
         return Response(self.get_serializer(patient).data)
 
     @action(detail=True, methods=['get', 'post'], url_path='records')
     def records(self, request, pk=None):
+        if request.user.role == Role.PARAMEDIC:
+            return Response(
+                {'detail': 'Paramedics do not have access to clinical records.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         patient = self.get_object()
         if request.method == 'GET':
             serializer = ClinicalRecordSerializer(patient.records.all(), many=True)

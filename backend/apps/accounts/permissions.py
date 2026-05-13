@@ -42,6 +42,7 @@ class HasAnyRole(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role in (
-                Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN, Role.DOCTOR, Role.NURSE
+                Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN,
+                Role.DOCTOR, Role.NURSE, Role.PARAMEDIC,
             )
         )

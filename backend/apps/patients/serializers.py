@@ -66,3 +66,19 @@ class PatientListSerializer(serializers.ModelSerializer):
         model = Patient
         fields = ('id', 'national_id', 'full_name', 'date_of_birth', 'gender',
                   'blood_type', 'created_at')
+
+
+class ParamedicPatientSerializer(serializers.ModelSerializer):
+    """Read-only view for paramedics — emergency data only, no sensitive fields."""
+
+    class Meta:
+        model = Patient
+        fields = (
+            'id', 'full_name', 'date_of_birth', 'blood_type',
+            'allergies', 'critical_conditions', 'chronic_conditions',
+            'next_of_kin_name', 'next_of_kin_relationship',
+            'next_of_kin_phone', 'next_of_kin_alt_phone',
+            'emergency_contact',
+            'emergency_contact_2_name', 'emergency_contact_2_phone',
+            'emergency_contact_3_name', 'emergency_contact_3_phone',
+        )

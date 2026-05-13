@@ -8,6 +8,7 @@ class Role(models.TextChoices):
     HOSPITAL_ADMIN = 'hospital_admin', 'Hospital Admin'
     DOCTOR = 'doctor', 'Doctor'
     NURSE = 'nurse', 'Nurse'
+    PARAMEDIC = 'paramedic', 'Paramedic'
 
 
 class UserManager(BaseUserManager):

@@ -67,13 +67,14 @@ function DashboardPage() {
     (l) => !l.roles || l.roles.some((r) => hasRole(r)),
   )
 
-  const roleLabel = isSystemAdmin
-    ? 'System Administrator'
-    : isHospitalAdmin
-      ? `Hospital Administrator${user?.hospital_name ? ' — ' + user.hospital_name : ''}`
-      : user?.role
-          ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
-          : ''
+  const ROLE_LABELS: Record<string, string> = {
+    system_admin: 'System Administrator',
+    hospital_admin: `Hospital Administrator${user?.hospital_name ? ' — ' + user.hospital_name : ''}`,
+    doctor: 'Doctor',
+    nurse: 'Nurse',
+    paramedic: 'Paramedic',
+  }
+  const roleLabel = user?.role ? (ROLE_LABELS[user.role] ?? user.role) : ''
 
   return (
     <div>
