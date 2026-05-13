@@ -9,6 +9,7 @@ import {
   Activity,
   ShieldCheck,
   Building2,
+  UsersRound,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import type { UserRole } from '../types'
@@ -25,10 +26,36 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { to: '/search', label: 'Search Patient', icon: <Search size={18} /> },
   { to: '/patients', label: 'All Patients', icon: <Users size={18} /> },
-  { to: '/register', label: 'Register Patient', icon: <UserPlus size={18} />, roles: ['admin', 'nurse'] },
-  { to: '/audit-logs', label: 'Audit Logs', icon: <ClipboardList size={18} />, roles: ['admin'] },
-  { to: '/hospitals', label: 'Hospitals', icon: <Building2 size={18} />, systemAdminOnly: true },
-  { to: '/users', label: 'User Management', icon: <ShieldCheck size={18} />, roles: ['admin'] },
+  {
+    to: '/register',
+    label: 'Register Patient',
+    icon: <UserPlus size={18} />,
+    roles: ['system_admin', 'hospital_admin', 'nurse', 'doctor'],
+  },
+  {
+    to: '/audit-logs',
+    label: 'Audit Logs',
+    icon: <ClipboardList size={18} />,
+    roles: ['system_admin', 'hospital_admin'],
+  },
+  {
+    to: '/hospitals',
+    label: 'Hospitals',
+    icon: <Building2 size={18} />,
+    systemAdminOnly: true,
+  },
+  {
+    to: '/staff',
+    label: 'Staff Management',
+    icon: <UsersRound size={18} />,
+    roles: ['system_admin', 'hospital_admin'],
+  },
+  {
+    to: '/users',
+    label: 'User Management',
+    icon: <ShieldCheck size={18} />,
+    roles: ['system_admin', 'hospital_admin'],
+  },
 ]
 
 export function Sidebar() {
@@ -45,6 +72,12 @@ export function Sidebar() {
     if (item.roles) return item.roles.some((r) => hasRole(r))
     return true
   })
+
+  const roleDisplayName = (role: string) => {
+    if (role === 'system_admin') return 'System Admin'
+    if (role === 'hospital_admin') return 'Hospital Admin'
+    return role.charAt(0).toUpperCase() + role.slice(1)
+  }
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -71,7 +104,7 @@ export function Sidebar() {
           <div className="mb-2 px-2">
             <p className="truncate text-xs font-medium text-slate-800">{user.full_name}</p>
             <p className="truncate text-xs capitalize text-slate-400">
-              {isSystemAdmin ? 'System Admin' : user.role}
+              {roleDisplayName(user.role)}
             </p>
             {user.hospital_name && (
               <p className="truncate text-xs text-slate-400">{user.hospital_name}</p>

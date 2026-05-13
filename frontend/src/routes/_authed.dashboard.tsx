@@ -1,7 +1,8 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { authedRoute } from './_authed'
 import { useAuth } from '../hooks/useAuth'
-import { Search, UserPlus, Users, ClipboardList, Activity } from 'lucide-react'
+import { Search, UserPlus, Users, ClipboardList, Activity, UsersRound } from 'lucide-react'
+import type { UserRole } from '../types'
 
 export const dashboardRoute = createRoute({
   getParentRoute: () => authedRoute,
@@ -15,21 +16,21 @@ interface QuickLink {
   description: string
   icon: React.ReactNode
   color: string
-  roles?: ('admin' | 'doctor' | 'nurse')[]
+  roles?: UserRole[]
 }
 
 const LINKS: QuickLink[] = [
   {
     to: '/search',
     label: 'Search Patient',
-    description: 'Look up by National ID',
+    description: 'Look up by National ID nationwide',
     icon: <Search size={24} />,
     color: 'text-sky-600 bg-sky-50',
   },
   {
     to: '/patients',
     label: 'All Patients',
-    description: 'Browse the full patient list',
+    description: 'Browse all patients — Zimbabwe',
     icon: <Users size={24} />,
     color: 'text-emerald-600 bg-emerald-50',
   },
@@ -39,7 +40,7 @@ const LINKS: QuickLink[] = [
     description: 'Add a new patient record',
     icon: <UserPlus size={24} />,
     color: 'text-violet-600 bg-violet-50',
-    roles: ['admin', 'nurse'],
+    roles: ['system_admin', 'hospital_admin', 'nurse', 'doctor'],
   },
   {
     to: '/audit-logs',
@@ -47,7 +48,15 @@ const LINKS: QuickLink[] = [
     description: 'View all system access events',
     icon: <ClipboardList size={24} />,
     color: 'text-orange-600 bg-orange-50',
-    roles: ['admin'],
+    roles: ['system_admin', 'hospital_admin'],
+  },
+  {
+    to: '/staff',
+    label: 'Staff Management',
+    description: 'Manage hospital staff accounts',
+    icon: <UsersRound size={24} />,
+    color: 'text-indigo-600 bg-indigo-50',
+    roles: ['system_admin', 'hospital_admin'],
   },
 ]
 
@@ -61,8 +70,10 @@ function DashboardPage() {
   const roleLabel = isSystemAdmin
     ? 'System Administrator'
     : isHospitalAdmin
-      ? 'Hospital Administrator'
-      : user?.role ?? ''
+      ? `Hospital Administrator${user?.hospital_name ? ' — ' + user.hospital_name : ''}`
+      : user?.role
+          ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+          : ''
 
   return (
     <div>

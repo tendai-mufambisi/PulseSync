@@ -30,7 +30,7 @@ function PatientListPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Patients</h1>
+        <h1 className="text-xl font-semibold text-slate-900">All Patients — Zimbabwe</h1>
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input

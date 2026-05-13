@@ -38,7 +38,7 @@ function SearchPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold text-slate-900">Search Patient</h1>
+      <h1 className="mb-6 text-xl font-semibold text-slate-900">Nationwide Patient Search</h1>
 
       <form onSubmit={handleSubmit} className="mb-6 flex gap-2">
         <input

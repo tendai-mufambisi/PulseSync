@@ -7,7 +7,7 @@ import type { Patient, ClinicalRecord } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { RoleGate } from '../components/RoleGate'
 import { PageSpinner, ErrorState, EmptyState, Spinner } from '../components/States'
-import { ArrowLeft, Trash2, Plus, Pencil, X } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, Pencil, X, AlertTriangle } from 'lucide-react'
 
 export const patientDetailRoute = createRoute({
   getParentRoute: () => authedRoute,
@@ -22,7 +22,16 @@ interface EditableFields {
   blood_type: string
   allergies: string
   critical_conditions: string
+  chronic_conditions: string
   emergency_contact: string
+  next_of_kin_name: string
+  next_of_kin_relationship: string
+  next_of_kin_phone: string
+  next_of_kin_alt_phone: string
+  emergency_contact_2_name: string
+  emergency_contact_2_phone: string
+  emergency_contact_3_name: string
+  emergency_contact_3_phone: string
   hiv_status: string
   notes: string
 }
@@ -68,9 +77,12 @@ function PatientDetailPage() {
   const handleEdit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    // Only include fields that were actually rendered (nurses won't have hiv_status)
     const payload = Object.fromEntries(fd.entries()) as Partial<EditableFields>
     editMutation.mutate(payload)
+  }
+
+  const openEmergency = () => {
+    window.open(`/emergency/${patient.id}`, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -90,6 +102,15 @@ function PatientDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* SOS Emergency button */}
+          <button
+            onClick={openEmergency}
+            className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+            title="Open emergency profile in new tab"
+          >
+            <AlertTriangle size={14} />
+            SOS
+          </button>
           <button
             onClick={() => { setEditing((v) => !v); setEditError('') }}
             className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
@@ -117,20 +138,47 @@ function PatientDetailPage() {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Edit Patient Details
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <EF label="Full Name" name="full_name" defaultValue={patient.full_name} required />
-            <EF label="Date of Birth" name="date_of_birth" type="date" defaultValue={patient.date_of_birth} required />
-            <EFSelect label="Gender" name="gender" defaultValue={patient.gender}
-              options={['female','male','other']} />
-            <EFSelect label="Blood Type" name="blood_type" defaultValue={patient.blood_type}
-              options={['A+','A-','B+','B-','AB+','AB-','O+','O-','unknown']} />
-            <RoleGate roles={['admin', 'doctor']}>
-              <EF label="HIV Status" name="hiv_status" defaultValue={patient.hiv_status} />
-            </RoleGate>
-            <EF label="Emergency Contact" name="emergency_contact" defaultValue={patient.emergency_contact} span />
-            <EFTextarea label="Allergies" name="allergies" defaultValue={patient.allergies} span />
-            <EFTextarea label="Critical Conditions" name="critical_conditions" defaultValue={patient.critical_conditions} span />
-            <EFTextarea label="Notes" name="notes" defaultValue={patient.notes} span />
+          <div className="space-y-6">
+            {/* Personal */}
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Personal</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <EF label="Full Name" name="full_name" defaultValue={patient.full_name} required />
+                <EF label="Date of Birth" name="date_of_birth" type="date" defaultValue={patient.date_of_birth} required />
+                <EFSelect label="Gender" name="gender" defaultValue={patient.gender}
+                  options={['female', 'male', 'other']} />
+                <EFSelect label="Blood Type" name="blood_type" defaultValue={patient.blood_type}
+                  options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown']} />
+                <RoleGate roles={['system_admin', 'hospital_admin', 'doctor']}>
+                  <EF label="HIV Status" name="hiv_status" defaultValue={patient.hiv_status} />
+                </RoleGate>
+              </div>
+            </div>
+            {/* Medical */}
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Medical</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <EFTextarea label="Allergies" name="allergies" defaultValue={patient.allergies} span />
+                <EFTextarea label="Chronic Conditions" name="chronic_conditions" defaultValue={patient.chronic_conditions} span />
+                <EFTextarea label="Critical Conditions" name="critical_conditions" defaultValue={patient.critical_conditions} span />
+                <EFTextarea label="Notes" name="notes" defaultValue={patient.notes} span />
+              </div>
+            </div>
+            {/* Next of kin */}
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Next of Kin &amp; Emergency Contacts</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <EF label="Next of Kin — Name" name="next_of_kin_name" defaultValue={patient.next_of_kin_name} />
+                <EF label="Relationship" name="next_of_kin_relationship" defaultValue={patient.next_of_kin_relationship} />
+                <EF label="Phone" name="next_of_kin_phone" defaultValue={patient.next_of_kin_phone} />
+                <EF label="Alt Phone" name="next_of_kin_alt_phone" defaultValue={patient.next_of_kin_alt_phone} />
+                <EF label="Emergency Contact" name="emergency_contact" defaultValue={patient.emergency_contact} span />
+                <EF label="Contact 2 — Name" name="emergency_contact_2_name" defaultValue={patient.emergency_contact_2_name} />
+                <EF label="Contact 2 — Phone" name="emergency_contact_2_phone" defaultValue={patient.emergency_contact_2_phone} />
+                <EF label="Contact 3 — Name" name="emergency_contact_3_name" defaultValue={patient.emergency_contact_3_name} />
+                <EF label="Contact 3 — Phone" name="emergency_contact_3_phone" defaultValue={patient.emergency_contact_3_phone} />
+              </div>
+            </div>
           </div>
           {editError && (
             <p className="mt-3 text-sm text-red-600">{editError}</p>
@@ -162,8 +210,7 @@ function PatientDetailPage() {
               <Info label="Date of Birth" value={patient.date_of_birth} />
               <Info label="Gender" value={patient.gender} capitalize />
               <Info label="Blood Type" value={patient.blood_type} />
-              <Info label="Emergency Contact" value={patient.emergency_contact || '—'} span />
-              <RoleGate roles={['admin', 'doctor']}>
+              <RoleGate roles={['system_admin', 'hospital_admin', 'doctor']}>
                 <Info label="HIV Status" value={patient.hiv_status || '—'} />
               </RoleGate>
               <RoleGate roles={['nurse']}>
@@ -177,8 +224,45 @@ function PatientDetailPage() {
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Clinical Info</h2>
             <div className="flex flex-col gap-3">
               <Info label="Allergies" value={patient.allergies || 'None reported'} block />
+              <Info label="Chronic Conditions" value={patient.chronic_conditions || 'None reported'} block />
               <Info label="Critical Conditions" value={patient.critical_conditions || 'None reported'} block />
               <Info label="Notes" value={patient.notes || '—'} block />
+            </div>
+          </div>
+
+          {/* Next of kin card */}
+          <div className="card mb-5 p-5">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+              Next of Kin &amp; Emergency Contacts
+            </h2>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
+              {patient.next_of_kin_name ? (
+                <>
+                  <Info label="Next of Kin" value={patient.next_of_kin_name} />
+                  <Info label="Relationship" value={patient.next_of_kin_relationship || '—'} />
+                  <Info label="Phone" value={patient.next_of_kin_phone || '—'} />
+                  {patient.next_of_kin_alt_phone && (
+                    <Info label="Alt Phone" value={patient.next_of_kin_alt_phone} />
+                  )}
+                </>
+              ) : (
+                <p className="col-span-3 text-sm text-slate-400">No next of kin recorded.</p>
+              )}
+              {patient.emergency_contact && (
+                <Info label="Emergency Contact" value={patient.emergency_contact} span />
+              )}
+              {patient.emergency_contact_2_name && (
+                <>
+                  <Info label="Contact 2" value={patient.emergency_contact_2_name} />
+                  <Info label="Phone 2" value={patient.emergency_contact_2_phone || '—'} />
+                </>
+              )}
+              {patient.emergency_contact_3_name && (
+                <>
+                  <Info label="Contact 3" value={patient.emergency_contact_3_name} />
+                  <Info label="Phone 3" value={patient.emergency_contact_3_phone || '—'} />
+                </>
+              )}
             </div>
           </div>
         </>
@@ -274,7 +358,7 @@ function ClinicalRecordsSection({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
           Clinical Records
         </h2>
-        {hasRole('doctor') && (
+        {hasRole('doctor', 'system_admin', 'hospital_admin') && (
           <button
             onClick={() => setShowForm((v) => !v)}
             className="flex items-center gap-1.5 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700"

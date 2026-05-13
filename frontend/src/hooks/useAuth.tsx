@@ -58,11 +58,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasRole = (...roles: UserRole[]): boolean =>
     user !== null && roles.includes(user.role)
 
-  const isSystemAdmin = user?.role === 'admin' && !user?.hospital
-  const isHospitalAdmin = user?.role === 'admin' && !!user?.hospital
+  const isSystemAdmin = user?.role === 'system_admin'
+  const isHospitalAdmin = user?.role === 'hospital_admin'
 
   return (
-    <AuthContext.Provider value={{ user, loading, isSystemAdmin: !!isSystemAdmin, isHospitalAdmin: !!isHospitalAdmin, signIn, signOut, refreshUser: fetchMe, hasRole }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isSystemAdmin: !!isSystemAdmin,
+        isHospitalAdmin: !!isHospitalAdmin,
+        signIn,
+        signOut,
+        refreshUser: fetchMe,
+        hasRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

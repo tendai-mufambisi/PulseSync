@@ -4,7 +4,8 @@ from django.db import models
 
 
 class Role(models.TextChoices):
-    ADMIN = 'admin', 'Admin'
+    SYSTEM_ADMIN = 'system_admin', 'System Admin'
+    HOSPITAL_ADMIN = 'hospital_admin', 'Hospital Admin'
     DOCTOR = 'doctor', 'Doctor'
     NURSE = 'nurse', 'Nurse'
 
@@ -20,7 +21,7 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('role', Role.ADMIN)
+        extra_fields.setdefault('role', Role.SYSTEM_ADMIN)
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, password, **extra_fields)
@@ -38,8 +39,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         related_name='staff',
     )
-    must_change_password = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    must_change_password = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

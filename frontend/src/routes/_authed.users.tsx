@@ -14,13 +14,13 @@ export const usersRoute = createRoute({
   component: UsersPage,
 })
 
-const ROLE_OPTIONS: UserRole[] = ['admin', 'doctor', 'nurse']
+const ROLE_OPTIONS: UserRole[] = ['system_admin', 'hospital_admin', 'doctor', 'nurse']
 const EMPTY_FORM = { email: '', full_name: '', password: '', role: 'nurse' as UserRole, hospital: '' }
 
 function UsersPage() {
   const { hasRole, user: me } = useAuth()
 
-  if (!hasRole('admin')) {
+  if (!hasRole('system_admin', 'hospital_admin')) {
     return (
       <div className="card mx-auto max-w-md p-8 text-center text-sm text-slate-500">
         User management is restricted to admins.
@@ -32,7 +32,7 @@ function UsersPage() {
 }
 
 function UsersList({ meId }: { meId: string }) {
-  const { isSystemAdmin, user: me } = useAuth()
+  const { isSystemAdmin, isHospitalAdmin, user: me } = useAuth()
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -46,7 +46,6 @@ function UsersList({ meId }: { meId: string }) {
     },
   })
 
-  // Only system admins need the hospital picker
   const { data: hospitals } = useQuery<Hospital[]>({
     queryKey: ['hospitals'],
     queryFn: async () => {
@@ -73,7 +72,7 @@ function UsersList({ meId }: { meId: string }) {
     onError: (err: unknown) => {
       const d = (err as { response?: { data?: Record<string, string | string[]> } })?.response?.data
       const raw = d?.detail ?? d?.email ?? d?.password ?? 'Failed to create user.'
-      setCreateError(Array.isArray(raw) ? raw[0] : raw)
+      setCreateError(Array.isArray(raw) ? raw[0] : String(raw))
     },
   })
 
@@ -87,15 +86,19 @@ function UsersList({ meId }: { meId: string }) {
     createMutation.mutate(form)
   }
 
-  // Hospital admins can only create staff for their own hospital — no admin role option
-  const availableRoles: UserRole[] = isSystemAdmin ? ROLE_OPTIONS : ['doctor', 'nurse']
+  const availableRoles: UserRole[] = isSystemAdmin
+    ? ROLE_OPTIONS
+    : ['doctor', 'nurse']
+
+  const roleLabel = (r: string) =>
+    r.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">User Management</h1>
-          {!isSystemAdmin && me?.hospital_name && (
+          {isHospitalAdmin && me?.hospital_name && (
             <p className="mt-0.5 text-sm text-slate-500">{me.hospital_name}</p>
           )}
         </div>
@@ -112,11 +115,6 @@ function UsersList({ meId }: { meId: string }) {
         <form onSubmit={handleCreate} className="card mb-6 p-5">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
             New User Account
-            {!isSystemAdmin && me?.hospital_name && (
-              <span className="ml-2 normal-case font-normal text-slate-400">
-                — {me.hospital_name}
-              </span>
-            )}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -159,21 +157,20 @@ function UsersList({ meId }: { meId: string }) {
               <label className="mb-1 block text-xs font-medium text-slate-700">Role *</label>
               <select value={form.role} onChange={set('role')} className="input">
                 {availableRoles.map((r) => (
-                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                  <option key={r} value={r}>{roleLabel(r)}</option>
                 ))}
               </select>
             </div>
 
-            {/* Hospital picker: system admin only */}
             {isSystemAdmin && (
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700">
-                  Hospital / Clinic {form.role !== 'admin' && '*'}
+                  Hospital / Clinic {form.role !== 'system_admin' && '*'}
                 </label>
                 <select
                   value={form.hospital}
                   onChange={set('hospital')}
-                  required={form.role !== 'admin'}
+                  required={form.role !== 'system_admin'}
                   className="input"
                 >
                   <option value="">— Select hospital —</option>
@@ -181,11 +178,6 @@ function UsersList({ meId }: { meId: string }) {
                     <option key={h.id} value={h.id}>{h.name}</option>
                   ))}
                 </select>
-                {form.role === 'admin' && (
-                  <p className="mt-1 text-xs text-slate-400">
-                    Leave blank to create a system-level admin.
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -235,7 +227,7 @@ function UsersList({ meId }: { meId: string }) {
               {u.hospital_name ?? <span className="text-slate-300">—</span>}
             </span>
             <span className="w-fit rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">
-              {u.role}
+              {roleLabel(u.role)}
             </span>
             {u.id !== meId ? (
               <select
@@ -247,7 +239,7 @@ function UsersList({ meId }: { meId: string }) {
                 className="rounded-md border border-slate-300 px-2 py-1 text-xs outline-none focus:border-sky-500"
               >
                 {availableRoles.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>{roleLabel(r)}</option>
                 ))}
               </select>
             ) : (

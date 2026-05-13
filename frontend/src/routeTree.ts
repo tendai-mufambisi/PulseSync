@@ -11,6 +11,7 @@ import { patientDetailRoute } from './routes/_authed.patients.$patientId'
 import { auditLogsRoute } from './routes/_authed.audit-logs'
 import { hospitalsRoute } from './routes/_authed.hospitals'
 import { usersRoute } from './routes/_authed.users'
+import { staffRoute } from './routes/_authed.staff'
 import { emergencyRoute } from './routes/emergency.$patientId'
 
 export const routeTree = rootRoute.addChildren([
@@ -27,5 +28,6 @@ export const routeTree = rootRoute.addChildren([
     auditLogsRoute,
     hospitalsRoute,
     usersRoute,
+    staffRoute,
   ]),
 ])

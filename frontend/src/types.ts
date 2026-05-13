@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'doctor' | 'nurse'
+export type UserRole = 'system_admin' | 'hospital_admin' | 'doctor' | 'nurse'
 
 export interface Hospital {
   id: string
@@ -17,6 +17,7 @@ export interface AuthUser {
   hospital: string | null
   hospital_name: string | null
   must_change_password: boolean
+  is_active: boolean
   created_at: string
 }
 
@@ -29,7 +30,16 @@ export interface Patient {
   blood_type: string
   allergies: string
   critical_conditions: string
+  chronic_conditions: string
   emergency_contact: string
+  next_of_kin_name: string
+  next_of_kin_relationship: string
+  next_of_kin_phone: string
+  next_of_kin_alt_phone: string
+  emergency_contact_2_name: string
+  emergency_contact_2_phone: string
+  emergency_contact_3_name: string
+  emergency_contact_3_phone: string
   hiv_status: string
   notes: string
   created_by: string | null
@@ -65,9 +75,14 @@ export interface AuditLog {
   id: string
   user: string | null
   user_email: string | null
+  user_role: string | null
   patient: string | null
   patient_name: string | null
+  hospital: string | null
+  hospital_name: string | null
   action: string
+  category: string
+  severity: 'info' | 'warning' | 'critical'
   timestamp: string
   ip_address: string | null
 }
@@ -75,8 +90,18 @@ export interface AuditLog {
 export interface EmergencyPatient {
   id: string
   full_name: string
+  date_of_birth: string
   blood_type: string
   allergies: string
   critical_conditions: string
+  chronic_conditions: string
+  next_of_kin_name: string
+  next_of_kin_relationship: string
+  next_of_kin_phone: string
+  next_of_kin_alt_phone: string
   emergency_contact: string
+  emergency_contact_2_name: string
+  emergency_contact_2_phone: string
+  emergency_contact_3_name: string
+  emergency_contact_3_phone: string
 }
