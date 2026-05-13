@@ -18,7 +18,7 @@ function EmergencyPage() {
   const { data, isLoading, isError } = useQuery<EmergencyPatient>({
     queryKey: ['emergency', patientId],
     queryFn: async () => {
-      const { data } = await api.get(`/emergency/${patientId}/`)
+      const { data } = await api.get(`/patients/${patientId}/emergency/`)
       return data
     },
     retry: false,
