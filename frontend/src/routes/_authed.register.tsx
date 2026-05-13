@@ -13,7 +13,7 @@ export const registerRoute = createRoute({
 })
 
 const ZIM_ID_RE = /^\d{2}-\d{7}[A-Za-z]\d{2}$/
-const ZIM_ID_ERROR = 'Format must be DD-NNNNNNNLCC (e.g. 08-123456D53)'
+const ZIM_ID_ERROR = 'Format must be DD-NNNNNNNLCC (e.g. 63-2400679R42)'
 
 interface PatientFormData {
   national_id: string
@@ -143,7 +143,7 @@ function RegisterPatientPage() {
                 value={form.national_id}
                 onChange={handleNationalIdChange}
                 className={`input ${idError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : ''}`}
-                placeholder="08-123456D53"
+                placeholder="63-2400679R42"
                 maxLength={13}
               />
               {idError && (

@@ -5,7 +5,7 @@ from apps.accounts.models import User
 
 zim_id_validator = RegexValidator(
     regex=r'^\d{2}-\d{7}[A-Za-z]\d{2}$',
-    message='National ID must be in format DD-NNNNNNNLCC (e.g. 08-123456D53).',
+    message='National ID must be in format DD-NNNNNNNLCC (e.g. 63-2400679R42).',
 )
 
 

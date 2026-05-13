@@ -44,7 +44,7 @@ class PatientSerializer(serializers.ModelSerializer):
     def validate_national_id(self, value):
         if not _ZIM_ID_RE.match(value):
             raise serializers.ValidationError(
-                'National ID must be in format DD-NNNNNNNLCC (e.g. 08-123456D53): '
+                'National ID must be in format DD-NNNNNNNLCC (e.g. 63-2400679R42): '
                 '2-digit district code, 7-digit serial number, 1 letter, 2-digit code.'
             )
         # Normalise the letter to uppercase
