@@ -48,7 +48,7 @@ App is at **http://localhost:5173/**
 | Action | admin | doctor | nurse |
 |---|---|---|---|
 | List / search patients | ✅ | ✅ | ✅ |
-| Register patient | ✅ | ❌ | ✅ |
+| Register patient | ✅ | ❌ | ✅ | |
 | Edit patient | ✅ | ✅ | ✅ |
 | Delete patient | ✅ | ❌ | ❌ |
 | Add clinical record | ✅ | ✅ | ✅ |

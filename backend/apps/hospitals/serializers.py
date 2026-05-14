@@ -7,7 +7,7 @@ class HospitalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Hospital
-        fields = ('id', 'name', 'location', 'phone', 'staff_count', 'created_at')
+        fields = ('id', 'name', 'facility_type', 'facility_type_other', 'location', 'phone', 'staff_count', 'created_at')
         read_only_fields = ('id', 'staff_count', 'created_at')
 
     def get_staff_count(self, obj):

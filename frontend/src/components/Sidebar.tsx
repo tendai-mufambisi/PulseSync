@@ -40,7 +40,7 @@ const NAV: NavItem[] = [
   },
   {
     to: '/hospitals',
-    label: 'Hospitals',
+    label: 'Medical Centers',
     icon: <Building2 size={18} />,
     systemAdminOnly: true,
   },

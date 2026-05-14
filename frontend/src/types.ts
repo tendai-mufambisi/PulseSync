@@ -1,8 +1,12 @@
 export type UserRole = 'system_admin' | 'hospital_admin' | 'doctor' | 'nurse' | 'paramedic'
 
+export type FacilityType = 'hospital' | 'clinic' | 'health_center' | 'pharmacy' | 'laboratory' | 'other'
+
 export interface Hospital {
   id: string
   name: string
+  facility_type: FacilityType
+  facility_type_other: string
   location: string
   phone: string
   staff_count: number
