@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
-import { getPending, removePending } from '../lib/offlineQueue'
+import { getPending, removePendingAndNotify } from '../lib/offlineQueue'
 
 // Statuses that mean the payload itself is invalid — retrying will never help.
 // 401 (auth) and 403 (permission) are intentionally excluded: they're transient
@@ -50,14 +50,14 @@ export function useOfflineSync() {
     for (const item of pending) {
       try {
         await api.post('/patients/', item.payload)
-        removePending(item.id)
+        removePendingAndNotify(item.id)
         synced++
       } catch (err) {
         const status = (err as { response?: { status?: number } })?.response?.status
 
         if (status && PERMANENT_FAILURE_STATUSES.has(status)) {
           // True data/validation error — retrying will never succeed.
-          removePending(item.id)
+          removePendingAndNotify(item.id)
           failed.push(item.label)
         }
         // 401, 403, 5xx, or no response (network) — leave in queue for next attempt.

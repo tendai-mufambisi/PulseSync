@@ -106,6 +106,7 @@ export interface PatientListItem {
   gender: string
   blood_type: string
   created_at: string
+  _pending?: boolean
 }
 
 export interface ClinicalRecord {

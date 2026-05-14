@@ -28,6 +28,13 @@ export function enqueue(payload: Record<string, unknown>): void {
   const items = load()
   items.push({ id, payload, label, registrationType, queuedAt: new Date().toISOString() })
   save(items)
+  // Notify any listening UI so they can immediately show the pending patient
+  window.dispatchEvent(new CustomEvent('pwa:patient-enqueued'))
+}
+
+export function removePendingAndNotify(id: string): void {
+  removePending(id)
+  window.dispatchEvent(new CustomEvent('pwa:patient-enqueued'))
 }
 
 export function getPending(): PendingPatient[] {
