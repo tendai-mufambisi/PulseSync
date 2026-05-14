@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
-import { setTokens, clearTokens, getAccessToken } from '../lib/auth'
+import { setTokens, clearTokens, getAccessToken, saveLastUser, getLastUser, clearLastUser } from '../lib/auth'
 import type { AuthUser, UserRole } from '../types'
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   isSystemAdmin: boolean
   isHospitalAdmin: boolean
   signIn: (email: string, password: string) => Promise<void>
+  signInOffline: () => boolean
   signOut: () => void
   refreshUser: () => Promise<void>
   hasRole: (...roles: UserRole[]) => boolean
@@ -24,9 +25,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data } = await api.get<AuthUser>('/auth/me/')
       setUser(data)
-    } catch {
-      clearTokens()
-      setUser(null)
+      saveLastUser(data)
+    } catch (err) {
+      const isNetworkError = !(err as { response?: unknown }).response
+      if (isNetworkError && !navigator.onLine) {
+        // Offline — restore the last known identity so the session survives
+        const cached = getLastUser()
+        if (cached) {
+          setUser(cached)
+        } else {
+          clearTokens()
+          setUser(null)
+        }
+      } else {
+        clearTokens()
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }
@@ -48,10 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokens(data.access, data.refresh)
     const me = await api.get<AuthUser>('/auth/me/')
     setUser(me.data)
+    saveLastUser(me.data)
+  }
+
+  // Restore the previous session from local cache when offline.
+  // Returns true if a cached session was found, false if not.
+  const signInOffline = (): boolean => {
+    const cached = getLastUser()
+    if (!cached) return false
+    setUser(cached)
+    return true
   }
 
   const signOut = () => {
     clearTokens()
+    clearLastUser()
     setUser(null)
   }
 
@@ -69,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSystemAdmin: !!isSystemAdmin,
         isHospitalAdmin: !!isHospitalAdmin,
         signIn,
+        signInOffline,
         signOut,
         refreshUser: fetchMe,
         hasRole,

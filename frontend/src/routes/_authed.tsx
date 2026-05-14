@@ -2,6 +2,8 @@ import { createRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { rootRoute } from './__root'
 import { useAuth } from '../hooks/useAuth'
+import { useOfflineSync } from '../hooks/useOfflineSync'
+import { usePrefetchFacilityPatients } from '../hooks/usePrefetchFacilityPatients'
 import { Sidebar } from '../components/Sidebar'
 import { PageSpinner } from '../components/States'
 
@@ -14,6 +16,8 @@ export const authedRoute = createRoute({
 function AuthedLayout() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
+  useOfflineSync()
+  usePrefetchFacilityPatients(!!user)
 
   useEffect(() => {
     if (loading) return

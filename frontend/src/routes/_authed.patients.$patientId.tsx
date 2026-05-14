@@ -3,11 +3,11 @@ import { useState, type FormEvent } from 'react'
 import { authedRoute } from './_authed'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
-import type { Patient, ClinicalRecord } from '../types'
+import type { Patient, HealthEvent } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { RoleGate } from '../components/RoleGate'
 import { PageSpinner, ErrorState, EmptyState, Spinner } from '../components/States'
-import { ArrowLeft, Trash2, Plus, Pencil, X, AlertTriangle, Phone, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, Trash2, Pencil, X, AlertTriangle, ShieldAlert, Activity, Stethoscope, Pill, Baby, FlaskConical, ShieldX, Phone } from 'lucide-react'
 
 export const patientDetailRoute = createRoute({
   getParentRoute: () => authedRoute,
@@ -279,8 +279,8 @@ function PatientDetailPage() {
         </>
       )}
 
-      {/* Clinical Records */}
-      <ClinicalRecordsSection patientId={patient.id} records={patient.records ?? []} />
+      {/* Health Timeline */}
+      <HealthTimelineSection patientId={patient.id} />
     </div>
   )
 }
@@ -329,130 +329,112 @@ function EFTextarea({
   )
 }
 
-function ClinicalRecordsSection({
-  patientId,
-  records,
-}: {
-  patientId: string
-  records: ClinicalRecord[]
-}) {
-  const queryClient = useQueryClient()
-  const { hasRole } = useAuth()
-  const [showForm, setShowForm] = useState(false)
-  const [diagnosis, setDiagnosis] = useState('')
-  const [medications, setMedications] = useState('')
-  const [notes, setNotes] = useState('')
-  const [error, setError] = useState('')
+const EVENT_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  birth:        { label: 'Birth Record',   icon: <Baby size={14} />,         color: 'bg-sky-100 text-sky-700' },
+  consultation: { label: 'Consultation',   icon: <Stethoscope size={14} />,  color: 'bg-slate-100 text-slate-600' },
+  diagnosis:    { label: 'Diagnosis',      icon: <Activity size={14} />,     color: 'bg-amber-100 text-amber-700' },
+  medication:   { label: 'Medication',     icon: <Pill size={14} />,         color: 'bg-emerald-100 text-emerald-700' },
+  emergency:    { label: 'Emergency',      icon: <AlertTriangle size={14} />, color: 'bg-red-100 text-red-700' },
+  sensitive:    { label: 'Sensitive',      icon: <ShieldX size={14} />,      color: 'bg-purple-100 text-purple-700' },
+}
 
-  const addMutation = useMutation({
-    mutationFn: (data: { diagnosis: string; medications: string; notes: string }) =>
-      api.post(`/patients/${patientId}/records/`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patient', patientId] })
-      setShowForm(false)
-      setDiagnosis('')
-      setMedications('')
-      setNotes('')
+function HealthTimelineSection({ patientId }: { patientId: string }) {
+  const { data: events, isLoading, isError } = useQuery<HealthEvent[]>({
+    queryKey: ['patient-timeline', patientId],
+    queryFn: async () => {
+      const { data } = await api.get(`/patients/${patientId}/timeline/`)
+      return data.results ?? data
     },
-    onError: () => setError('Failed to add record.'),
   })
-
-  const handleAdd = (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    addMutation.mutate({ diagnosis, medications, notes })
-  }
 
   return (
     <div className="card p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-          Clinical Records
+          Health Timeline
         </h2>
-        {hasRole('doctor', 'system_admin', 'hospital_admin') && (
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1.5 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700"
-          >
-            <Plus size={14} />
-            Add Record
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <FlaskConical size={13} />
+          {events ? `${events.length} event${events.length !== 1 ? 's' : ''}` : ''}
+        </div>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleAdd} className="mb-5 rounded-lg border border-sky-100 bg-sky-50 p-4">
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">Diagnosis *</label>
-              <textarea
-                required
-                rows={2}
-                value={diagnosis}
-                onChange={(e) => setDiagnosis(e.target.value)}
-                className="input resize-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">Medications</label>
-              <textarea
-                rows={2}
-                value={medications}
-                onChange={(e) => setMedications(e.target.value)}
-                className="input resize-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">Notes</label>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="input resize-none"
-              />
-            </div>
-          </div>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-          <div className="mt-3 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="rounded-md px-3 py-1.5 text-xs text-slate-500 hover:bg-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={addMutation.isPending}
-              className="flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-60"
-            >
-              {addMutation.isPending && <Spinner size={12} />}
-              Save
-            </button>
-          </div>
-        </form>
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Spinner size={20} />
+        </div>
+      )}
+      {isError && <ErrorState message="Could not load health timeline." />}
+      {!isLoading && !isError && events?.length === 0 && (
+        <EmptyState message="No health events recorded yet." />
       )}
 
-      {records.length === 0 && (
-        <EmptyState message="No clinical records yet. Add the first one!" />
-      )}
-      <div className="flex flex-col divide-y divide-slate-100">
-        {records.map((r) => (
-          <div key={r.id} className="py-4 first:pt-0 last:pb-0">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">{r.date}</span>
-              <span className="text-xs text-slate-400">by {r.author_name ?? 'unknown'}</span>
+      <div className="relative flex flex-col gap-0">
+        {events?.map((ev, i) => {
+          const meta = EVENT_META[ev.event_type] ?? EVENT_META.consultation
+          return (
+            <div key={ev.id} className="flex gap-4">
+              {/* Timeline spine */}
+              <div className="flex flex-col items-center">
+                <div className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${meta.color}`}>
+                  {meta.icon}
+                </div>
+                {i < (events.length - 1) && (
+                  <div className="w-px flex-1 bg-slate-100" style={{ minHeight: '1.5rem' }} />
+                )}
+              </div>
+
+              {/* Event body */}
+              <div className="mb-5 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.color}`}>
+                    {meta.label}
+                  </span>
+                  <span className="text-xs text-slate-400">{ev.event_date}</span>
+                  {ev.clinician_name && (
+                    <span className="text-xs text-slate-400">· {ev.clinician_name}</span>
+                  )}
+                  {ev.hospital_name && (
+                    <span className="text-xs text-slate-400">· {ev.hospital_name}</span>
+                  )}
+                </div>
+
+                {ev.summary && (
+                  <p className="mt-1.5 text-sm text-slate-700">{ev.summary}</p>
+                )}
+
+                {/* Birth-specific fields */}
+                {ev.event_type === 'birth' && (ev.birth_weight_kg || ev.delivery_type || ev.apgar_score != null) && (
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                    {ev.birth_weight_kg && <span>Weight: <strong>{ev.birth_weight_kg} kg</strong></span>}
+                    {ev.delivery_type && <span>Delivery: <strong className="capitalize">{ev.delivery_type}</strong></span>}
+                    {ev.gestational_age_weeks && <span>Gestation: <strong>{ev.gestational_age_weeks}w</strong></span>}
+                    {ev.apgar_score != null && <span>APGAR: <strong>{ev.apgar_score}</strong></span>}
+                  </div>
+                )}
+
+                {ev.diagnosis && (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    <span className="font-medium">Diagnosis:</span> {ev.diagnosis}
+                  </p>
+                )}
+                {ev.medications && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    <span className="font-medium">Medications:</span> {ev.medications}
+                  </p>
+                )}
+                {ev.notes && (
+                  <p className="mt-1 text-xs text-slate-400 italic">{ev.notes}</p>
+                )}
+                {ev.is_sensitive && ev.sensitive_category && (
+                  <span className="mt-1.5 inline-block rounded bg-purple-50 px-2 py-0.5 text-xs text-purple-600">
+                    {ev.sensitive_category.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="text-sm font-medium text-slate-900">{r.diagnosis}</p>
-            {r.medications && (
-              <p className="mt-1 text-sm text-slate-600">
-                <span className="text-xs font-medium text-slate-400">Medications: </span>
-                {r.medications}
-              </p>
-            )}
-            {r.notes && <p className="mt-1 text-sm text-slate-500">{r.notes}</p>}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

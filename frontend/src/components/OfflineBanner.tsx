@@ -1,14 +1,29 @@
 import { useEffect, useState } from 'react'
-import { WifiOff, Wifi, RefreshCw, Download } from 'lucide-react'
+import { WifiOff, Wifi, RefreshCw, Download, UploadCloud, CheckCircle, AlertTriangle, DatabaseZap } from 'lucide-react'
+import { pendingCount } from '../lib/offlineQueue'
 
-type BannerState = 'hidden' | 'offline' | 'back-online' | 'update-available' | 'offline-ready'
+type BannerState =
+  | 'hidden'
+  | 'offline'
+  | 'back-online'
+  | 'update-available'
+  | 'offline-ready'
+  | 'facility-cached'
+  | 'syncing'
+  | 'sync-complete'
+  | 'sync-failed'
+
+interface SyncResult {
+  synced: number
+  failed: string[]
+}
 
 export function OfflineBanner() {
   const [state, setState] = useState<BannerState>('hidden')
   const [offlineSince, setOfflineSince] = useState<Date | null>(null)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
 
   useEffect(() => {
-    // Initial check
     if (!navigator.onLine) {
       setState('offline')
       setOfflineSince(new Date())
@@ -20,9 +35,45 @@ export function OfflineBanner() {
     }
 
     const handleOnline = () => {
-      setState('back-online')
-      // Hide the "back online" message after 4 seconds
-      setTimeout(() => setState('hidden'), 4000)
+      if (pendingCount() > 0) {
+        // useOfflineSync will dispatch pwa:syncing shortly — wait for it
+        setState('syncing')
+      } else {
+        setState('back-online')
+        setTimeout(() => setState('hidden'), 4000)
+      }
+    }
+
+    const handleSyncing = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail.count
+      setState('syncing')
+      setSyncResult({ synced: 0, failed: [] })
+      // Attach count to result for display
+      setSyncResult((prev) => ({ ...(prev ?? { failed: [] }), synced: count }))
+    }
+
+    const handleSyncComplete = (e: Event) => {
+      const { synced, failed } = (e as CustomEvent<SyncResult>).detail
+      setSyncResult({ synced, failed })
+      if (failed.length > 0) {
+        setState('sync-failed')
+      } else {
+        setState('sync-complete')
+        setTimeout(() => setState('hidden'), 6000)
+      }
+    }
+
+    const handleFacilityCached = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail.count
+      // Only show if not already showing something more urgent
+      setState((prev) =>
+        prev === 'hidden' || prev === 'back-online' || prev === 'offline-ready'
+          ? 'facility-cached'
+          : prev,
+      )
+      // Stash count for display — reuse syncResult slot
+      setSyncResult({ synced: count, failed: [] })
+      setTimeout(() => setState((prev) => (prev === 'facility-cached' ? 'hidden' : prev)), 5000)
     }
 
     const handleOfflineReady = () => {
@@ -36,12 +87,18 @@ export function OfflineBanner() {
 
     window.addEventListener('offline', handleOffline)
     window.addEventListener('online', handleOnline)
+    window.addEventListener('pwa:syncing', handleSyncing)
+    window.addEventListener('pwa:sync-complete', handleSyncComplete)
+    window.addEventListener('pwa:facility-cached', handleFacilityCached)
     window.addEventListener('pwa:offline-ready', handleOfflineReady)
     window.addEventListener('pwa:update-available', handleUpdateAvailable)
 
     return () => {
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('online', handleOnline)
+      window.removeEventListener('pwa:syncing', handleSyncing)
+      window.removeEventListener('pwa:sync-complete', handleSyncComplete)
+      window.removeEventListener('pwa:facility-cached', handleFacilityCached)
       window.removeEventListener('pwa:offline-ready', handleOfflineReady)
       window.removeEventListener('pwa:update-available', handleUpdateAvailable)
     }
@@ -60,9 +117,60 @@ export function OfflineBanner() {
             {offlineSince
               ? offlineSince.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'going offline'}{' '}
-            are available for reading. Saves are paused until reconnected.
+            are available. New registrations will be saved and synced when you reconnect.
           </span>
         </span>
+      </div>
+    )
+  }
+
+  if (state === 'syncing') {
+    return (
+      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+        <UploadCloud size={15} className="shrink-0 animate-pulse" />
+        Syncing patient records saved while offline…
+      </div>
+    )
+  }
+
+  if (state === 'sync-complete') {
+    return (
+      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+        <CheckCircle size={15} className="shrink-0" />
+        {syncResult?.synced === 1
+          ? '1 patient record synced successfully.'
+          : `${syncResult?.synced} patient records synced successfully.`}
+      </div>
+    )
+  }
+
+  if (state === 'sync-failed') {
+    return (
+      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+        <AlertTriangle size={15} className="shrink-0" />
+        <span>
+          {syncResult?.synced ? `${syncResult.synced} synced. ` : ''}
+          Could not sync:{' '}
+          <span className="font-normal">{syncResult?.failed.join(', ')}</span>
+          {' — '}please re-register these patients.
+        </span>
+        <button
+          onClick={() => setState('hidden')}
+          className="ml-1 text-xs opacity-75 hover:opacity-100"
+        >
+          Dismiss
+        </button>
+      </div>
+    )
+  }
+
+  if (state === 'facility-cached') {
+    return (
+      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+        <DatabaseZap size={15} className="shrink-0" />
+        {syncResult?.synced === 1
+          ? '1 patient record cached — available offline.'
+          : `${syncResult?.synced ?? 0} patient records cached — available offline.`}
       </div>
     )
   }

@@ -3,8 +3,9 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react'
 import { authedRoute } from './_authed'
 import { useAuth } from '../hooks/useAuth'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Baby, UserRound } from 'lucide-react'
+import { ArrowLeft, Baby, UserRound, WifiOff } from 'lucide-react'
 import api from '../lib/api'
+import { enqueue } from '../lib/offlineQueue'
 import { Spinner } from '../components/States'
 
 export const registerRoute = createRoute({
@@ -307,6 +308,48 @@ function RegisterPatientPage() {
   )
 }
 
+// ── Offline saved confirmation ────────────────────────────────────────────────
+
+function OfflineSavedConfirmation({
+  patientName,
+  onRegisterAnother,
+}: {
+  patientName: string
+  onRegisterAnother: () => void
+}) {
+  const navigate = useNavigate()
+  return (
+    <div className="card mx-auto max-w-md p-8 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+        <WifiOff size={28} className="text-amber-500" />
+      </div>
+      <h2 className="text-lg font-semibold text-slate-900">Saved for sync</h2>
+      <p className="mt-3 text-sm leading-relaxed text-slate-500">
+        <strong className="text-slate-700">{patientName || 'This patient'}</strong> has been saved
+        locally. Their record will be registered automatically the moment you reconnect to the
+        internet.
+      </p>
+      <p className="mt-2 text-xs text-slate-400">
+        You can safely close the app — the record won't be lost.
+      </p>
+      <div className="mt-6 flex justify-center gap-3">
+        <button
+          onClick={onRegisterAnother}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+        >
+          Register another
+        </button>
+        <button
+          onClick={() => navigate({ to: '/patients' })}
+          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+        >
+          Go to patients
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Step 1: Type selector ─────────────────────────────────────────────────────
 
 function TypeSelector({ onSelect }: { onSelect: (step: Step) => void }) {
@@ -371,6 +414,7 @@ function NewbornForm({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<NewbornFormData>(EMPTY_NEWBORN)
   const [apiError, setApiError] = useState('')
+  const [savedOffline, setSavedOffline] = useState(false)
 
   const set = useCallback(
     (field: keyof NewbornFormData) =>
@@ -388,13 +432,21 @@ function NewbornForm({ onBack }: { onBack: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['patients'] })
       navigate({ to: '/patients/$patientId', params: { patientId: res.data.id } })
     },
-    onError: (err) => setApiError(extractApiError(err)),
+    onError: (err, variables) => {
+      const isNetworkError = !(err as { response?: unknown }).response
+      if (isNetworkError) {
+        enqueue(variables as Record<string, unknown>)
+        setSavedOffline(true)
+      } else {
+        setApiError(extractApiError(err))
+      }
+    },
   })
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     setApiError('')
-    mutation.mutate({
+    const payload: Record<string, unknown> = {
       registration_type: 'newborn',
       full_name: form.full_name,
       date_of_birth: form.date_of_birth,
@@ -406,14 +458,12 @@ function NewbornForm({ onBack }: { onBack: () => void }) {
       guardian_relationship: form.guardian_relationship,
       guardian_national_id: form.guardian_national_id,
       guardian_contact: form.guardian_contact,
-      // Birth event fields — converted to numbers
       birth_weight_kg: toNum(form.birth_weight_kg),
       delivery_type: form.delivery_type || undefined,
       gestational_age_weeks: toInt(form.gestational_age_weeks),
       birth_complications: form.birth_complications,
       apgar_score: toInt(form.apgar_score),
       initial_observations: form.initial_observations,
-      // Emergency contacts
       next_of_kin_name: form.next_of_kin_name,
       next_of_kin_relationship: form.next_of_kin_relationship,
       next_of_kin_phone: form.next_of_kin_phone,
@@ -422,7 +472,22 @@ function NewbornForm({ onBack }: { onBack: () => void }) {
       emergency_contact_2_phone: form.emergency_contact_2_phone,
       emergency_contact_3_name: form.emergency_contact_3_name,
       emergency_contact_3_phone: form.emergency_contact_3_phone,
-    })
+    }
+    if (!navigator.onLine) {
+      enqueue(payload)
+      setSavedOffline(true)
+      return
+    }
+    mutation.mutate(payload)
+  }
+
+  if (savedOffline) {
+    return (
+      <OfflineSavedConfirmation
+        patientName={form.full_name}
+        onRegisterAnother={() => { setSavedOffline(false); setForm(EMPTY_NEWBORN) }}
+      />
+    )
   }
 
   return (
@@ -654,6 +719,7 @@ function ExistingPersonForm({ onBack }: { onBack: () => void }) {
   const [form, setForm] = useState<ExistingFormData>(EMPTY_EXISTING)
   const [idError, setIdError] = useState('')
   const [apiError, setApiError] = useState('')
+  const [savedOffline, setSavedOffline] = useState(false)
 
   const set = useCallback(
     (field: keyof ExistingFormData) =>
@@ -687,7 +753,15 @@ function ExistingPersonForm({ onBack }: { onBack: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['patients'] })
       navigate({ to: '/patients/$patientId', params: { patientId: res.data.id } })
     },
-    onError: (err) => setApiError(extractApiError(err)),
+    onError: (err, variables) => {
+      const isNetworkError = !(err as { response?: unknown }).response
+      if (isNetworkError) {
+        enqueue(variables as Record<string, unknown>)
+        setSavedOffline(true)
+      } else {
+        setApiError(extractApiError(err))
+      }
+    },
   })
 
   const handleSubmit = (e: FormEvent) => {
@@ -697,7 +771,22 @@ function ExistingPersonForm({ onBack }: { onBack: () => void }) {
       setIdError(ZIM_ID_ERROR)
       return
     }
-    mutation.mutate({ registration_type: 'existing', ...form })
+    const payload = { registration_type: 'existing', ...form } as Record<string, unknown>
+    if (!navigator.onLine) {
+      enqueue(payload)
+      setSavedOffline(true)
+      return
+    }
+    mutation.mutate(payload)
+  }
+
+  if (savedOffline) {
+    return (
+      <OfflineSavedConfirmation
+        patientName={form.full_name}
+        onRegisterAnother={() => { setSavedOffline(false); setForm(EMPTY_EXISTING) }}
+      />
+    )
   }
 
   return (
