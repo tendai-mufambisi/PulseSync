@@ -6,11 +6,14 @@ export interface PendingPatient {
   label: string
   registrationType: 'newborn' | 'existing'
   queuedAt: string
+  attempts: number
 }
 
 function load(): PendingPatient[] {
   try {
-    return JSON.parse(localStorage.getItem(QUEUE_KEY) ?? '[]')
+    const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? '[]') as PendingPatient[]
+    // Back-compat: older queued items may not have attempts
+    return raw.map((item) => ({ ...item, attempts: item.attempts ?? 0 }))
   } catch {
     return []
   }
@@ -26,10 +29,20 @@ export function enqueue(payload: Record<string, unknown>): void {
   const registrationType =
     (payload.registration_type as 'newborn' | 'existing' | undefined) ?? 'existing'
   const items = load()
-  items.push({ id, payload, label, registrationType, queuedAt: new Date().toISOString() })
+  items.push({ id, payload, label, registrationType, queuedAt: new Date().toISOString(), attempts: 0 })
   save(items)
-  // Notify any listening UI so they can immediately show the pending patient
   window.dispatchEvent(new CustomEvent('pwa:patient-enqueued'))
+}
+
+export function incrementAttempts(id: string): void {
+  const items = load().map((item) =>
+    item.id === id ? { ...item, attempts: item.attempts + 1 } : item,
+  )
+  save(items)
+}
+
+export function removePending(id: string): void {
+  save(load().filter((item) => item.id !== id))
 }
 
 export function removePendingAndNotify(id: string): void {
@@ -39,10 +52,6 @@ export function removePendingAndNotify(id: string): void {
 
 export function getPending(): PendingPatient[] {
   return load()
-}
-
-export function removePending(id: string): void {
-  save(load().filter((item) => item.id !== id))
 }
 
 export function pendingCount(): number {
