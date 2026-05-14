@@ -3,10 +3,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
-from .models import Patient, ClinicalRecord
+from .models import Patient, ClinicalRecord, HealthEvent
 from .serializers import (
-    PatientSerializer, PatientListSerializer,
+    PatientSerializer, PatientListSerializer, PatientCreateSerializer,
     ClinicalRecordSerializer, ParamedicPatientSerializer,
+    HealthEventSerializer,
 )
 from apps.accounts.permissions import HasAnyRole, IsSystemAdmin
 from apps.accounts.models import Role
@@ -17,6 +18,8 @@ class PatientViewSet(viewsets.ModelViewSet):
     permission_classes = [HasAnyRole]
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return PatientCreateSerializer
         if self.action == 'list':
             return PatientListSerializer
         if getattr(self.request.user, 'role', None) == Role.PARAMEDIC:
@@ -28,9 +31,9 @@ class PatientViewSet(viewsets.ModelViewSet):
         national_id = self.request.query_params.get('national_id', '').strip()
         search = self.request.query_params.get('search', '').strip()
         q = self.request.query_params.get('q', '').strip()
+        reg_type = self.request.query_params.get('registration_type', '').strip()
 
         if national_id:
-            # Normalize: strip dash so "632400679R42" matches "63-2400679R42"
             normalized = national_id.replace('-', '')
             qs = qs.annotate(
                 _id_nodash=Replace('national_id', Value('-'), Value(''))
@@ -43,7 +46,6 @@ class PatientViewSet(viewsets.ModelViewSet):
             qs = qs.filter(full_name__icontains=search)
 
         if q:
-            # Combined search across name and national ID (with dash normalization)
             q_nodash = q.replace('-', '')
             qs = qs.annotate(
                 _id_nodash=Replace('national_id', Value('-'), Value(''))
@@ -52,6 +54,9 @@ class PatientViewSet(viewsets.ModelViewSet):
                 Q(national_id__icontains=q) |
                 Q(_id_nodash__icontains=q_nodash)
             )
+
+        if reg_type in ('newborn', 'existing'):
+            qs = qs.filter(registration_type=reg_type)
 
         return qs
 
@@ -82,13 +87,18 @@ class PatientViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        serializer.save(
+        patient = serializer.save(
             created_by=self.request.user,
             hospital=self.request.user.hospital,
         )
+        log_action(
+            self.request.user, patient,
+            f"registered patient ({patient.registration_type}): {patient.full_name}",
+            category='patient', severity='info', request=self.request,
+        )
 
     def destroy(self, request, *args, **kwargs):
-        if not (request.user.role == Role.SYSTEM_ADMIN):
+        if request.user.role != Role.SYSTEM_ADMIN:
             return Response(
                 {'detail': 'Only system administrators can delete patients.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -110,6 +120,76 @@ class PatientViewSet(viewsets.ModelViewSet):
                 category='patient', severity='info', request=request,
             )
         return Response(self.get_serializer(patient).data)
+
+    # ------------------------------------------------------------------
+    # Health timeline endpoint (new — longitudinal structured records)
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=['get', 'post'], url_path='timeline')
+    def timeline(self, request, pk=None):
+        if request.user.role == Role.PARAMEDIC:
+            return Response(
+                {'detail': 'Paramedics do not have access to the health timeline.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        patient = self.get_object()
+
+        if request.method == 'GET':
+            events = patient.health_events.all()
+            # Nurses cannot view sensitive records
+            if request.user.role == Role.NURSE:
+                events = events.filter(is_sensitive=False)
+            serializer = HealthEventSerializer(events, many=True, context={'request': request})
+            return Response(serializer.data)
+
+        # POST — add a new health event
+        if request.user.role not in (Role.DOCTOR, Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN):
+            return Response(
+                {'detail': 'Only doctors and administrators can add health events.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = HealthEventSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        event = serializer.save(
+            patient=patient,
+            clinician=request.user,
+            hospital=request.user.hospital,
+            created_by=request.user,
+        )
+        log_action(
+            request.user, patient,
+            f"added {event.get_event_type_display()} event for {patient.full_name}",
+            category='record', severity='info', request=request,
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], url_path='timeline/(?P<event_pk>[^/.]+)')
+    def timeline_detail(self, request, pk=None, event_pk=None):
+        if request.user.role == Role.PARAMEDIC:
+            return Response(
+                {'detail': 'Paramedics do not have access to the health timeline.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        patient = self.get_object()
+        try:
+            event = patient.health_events.get(pk=event_pk)
+        except HealthEvent.DoesNotExist:
+            return Response({'detail': 'Health event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if event.is_sensitive and request.user.role == Role.NURSE:
+            return Response(
+                {'detail': 'You do not have access to sensitive records.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(HealthEventSerializer(event, context={'request': request}).data)
+
+    # ------------------------------------------------------------------
+    # Legacy records endpoint (backward compat — ClinicalRecord)
+    # ------------------------------------------------------------------
 
     @action(detail=True, methods=['get', 'post'], url_path='records')
     def records(self, request, pk=None):

@@ -7,7 +7,7 @@ import type { AuthUser, UserRole, Hospital } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { SkeletonList, ErrorState, EmptyState, Spinner } from '../components/States'
 import {
-  UserPlus, X, Pencil, Trash2, ArrowRightLeft, ShieldPlus,
+  UserPlus, X, Pencil, ArrowRightLeft, ShieldPlus, UserMinus,
 } from 'lucide-react'
 
 export const staffRoute = createRoute({
@@ -61,6 +61,9 @@ function StaffList() {
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null)
   const [transferUser, setTransferUser] = useState<AuthUser | null>(null)
   const [transferHospitalId, setTransferHospitalId] = useState('')
+  const [dischargeUser, setDischargeUser] = useState<AuthUser | null>(null)
+  const [dischargeReason, setDischargeReason] = useState('')
+  const [dischargeError, setDischargeError] = useState('')
 
   const [staffForm, setStaffForm] = useState<StaffForm>(EMPTY_FORM)
   const [adminForm, setAdminForm] = useState(SYSADMIN_FORM)
@@ -134,9 +137,19 @@ function StaffList() {
     onError: () => setEditError('Failed to update staff member.'),
   })
 
-  const deactivateMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/auth/staff/${id}/`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff'] }),
+  const dischargeMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/auth/staff/${id}/discharge/`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] })
+      setDischargeUser(null)
+      setDischargeReason('')
+      setDischargeError('')
+    },
+    onError: (err: unknown) => {
+      const d = (err as { response?: { data?: { detail?: string } } })?.response?.data
+      setDischargeError(d?.detail ?? 'Failed to remove staff member from facility.')
+    },
   })
 
   const transferMutation = useMutation({
@@ -180,6 +193,13 @@ function StaffList() {
     updateMutation.mutate({ id: editingUser.id, data: editForm })
   }
 
+  const handleDischarge = (e: FormEvent) => {
+    e.preventDefault()
+    if (!dischargeUser) return
+    setDischargeError('')
+    dischargeMutation.mutate({ id: dischargeUser.id, reason: dischargeReason })
+  }
+
   const handleTransfer = (e: FormEvent) => {
     e.preventDefault()
     if (!transferUser || !transferHospitalId) return
@@ -196,11 +216,16 @@ function StaffList() {
     setEditError('')
   }
 
+  const openDischarge = (u: AuthUser) => {
+    setDischargeUser(u)
+    setDischargeReason('')
+    setDischargeError('')
+  }
+
   const availableRoles: UserRole[] = isSystemAdmin
     ? ['system_admin', 'hospital_admin', 'doctor', 'nurse', 'paramedic']
     : ['doctor', 'nurse', 'paramedic']
 
-  // Group staff by hospital for system admin view
   const grouped = isSystemAdmin && staff
     ? staff.reduce<Record<string, AuthUser[]>>((acc, u) => {
         const key = u.hospital_name ?? 'System Level (No Hospital)'
@@ -212,7 +237,7 @@ function StaffList() {
 
   return (
     <div>
-      {/* Header */}
+      {/* ── Header ──────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Staff Management</h1>
@@ -240,7 +265,7 @@ function StaffList() {
         </div>
       </div>
 
-      {/* Add Staff Form */}
+      {/* ── Add Staff Form ───────────────────────────────────────── */}
       {showAddStaff && (
         <form onSubmit={handleAddStaff} className="card mb-6 p-5">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
@@ -272,9 +297,7 @@ function StaffList() {
             </div>
             {isSystemAdmin && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">
-                  Hospital *
-                </label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">Hospital *</label>
                 <select value={staffForm.hospital} onChange={set('hospital')}
                   required={staffForm.role !== 'system_admin'} className="input">
                   <option value="">— Select hospital —</option>
@@ -298,7 +321,7 @@ function StaffList() {
         </form>
       )}
 
-      {/* Add System Admin Form */}
+      {/* ── Add System Admin Form ────────────────────────────────── */}
       {showAddAdmin && isSystemAdmin && (
         <form onSubmit={handleAddAdmin} className="card mb-6 border border-amber-200 p-5">
           <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-amber-600">
@@ -337,7 +360,7 @@ function StaffList() {
         </form>
       )}
 
-      {/* Edit Staff Modal */}
+      {/* ── Edit Staff Modal ─────────────────────────────────────── */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form onSubmit={handleEdit} className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
@@ -390,7 +413,82 @@ function StaffList() {
         </div>
       )}
 
-      {/* Transfer Modal */}
+      {/* ── Discharge Modal ──────────────────────────────────────── */}
+      {dischargeUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <form
+            onSubmit={handleDischarge}
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Remove from Facility</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  <span className="font-medium text-slate-800">{dischargeUser.full_name}</span>
+                  {dischargeUser.hospital_name && (
+                    <> &mdash; {dischargeUser.hospital_name}</>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDischargeUser(null)}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mb-5 rounded-md bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-700">
+              This will unlink the account from the facility. The user will remain in the system
+              as an unattached account and can be reassigned to another facility at any time.
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-700">
+                Reason for removal *
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={dischargeReason}
+                onChange={(e) => setDischargeReason(e.target.value)}
+                className="input resize-none"
+                placeholder="e.g. Contract ended, transferred to another institution, disciplinary action…"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                This reason is recorded in the audit log.
+              </p>
+            </div>
+
+            {dischargeError && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                {dischargeError}
+              </p>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDischargeUser(null)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={dischargeMutation.isPending || !dischargeReason.trim()}
+                className="flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+              >
+                {dischargeMutation.isPending && <Spinner size={14} />}
+                Remove from Facility
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Transfer Modal ───────────────────────────────────────── */}
       {transferUser && isSystemAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form onSubmit={handleTransfer} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
@@ -430,7 +528,7 @@ function StaffList() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* ── Filters ─────────────────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap gap-3">
         {isSystemAdmin && (
           <select value={filterHospital} onChange={(e) => setFilterHospital(e.target.value)}
@@ -471,11 +569,7 @@ function StaffList() {
                 meId={me?.id ?? ''}
                 isSystemAdmin={isSystemAdmin}
                 onEdit={startEdit}
-                onDeactivate={(u) => {
-                  if (confirm(`Deactivate ${u.full_name}? They will lose system access.`)) {
-                    deactivateMutation.mutate(u.id)
-                  }
-                }}
+                onDischarge={openDischarge}
                 onTransfer={setTransferUser}
               />
             </div>
@@ -491,11 +585,7 @@ function StaffList() {
             meId={me?.id ?? ''}
             isSystemAdmin={false}
             onEdit={startEdit}
-            onDeactivate={(u) => {
-              if (confirm(`Deactivate ${u.full_name}? They will lose system access.`)) {
-                deactivateMutation.mutate(u.id)
-              }
-            }}
+            onDischarge={openDischarge}
             onTransfer={() => {}}
           />
         </div>
@@ -505,13 +595,13 @@ function StaffList() {
 }
 
 function StaffTable({
-  staff, meId, isSystemAdmin, onEdit, onDeactivate, onTransfer,
+  staff, meId, isSystemAdmin, onEdit, onDischarge, onTransfer,
 }: {
   staff: AuthUser[]
   meId: string
   isSystemAdmin: boolean
   onEdit: (u: AuthUser) => void
-  onDeactivate: (u: AuthUser) => void
+  onDischarge: (u: AuthUser) => void
   onTransfer: (u: AuthUser) => void
 }) {
   return (
@@ -543,30 +633,35 @@ function StaffTable({
             </span>
           </span>
           <div className="col-span-2 flex items-center gap-1">
-            {u.id !== meId && (
+            {u.id !== meId ? (
               <>
-                <button onClick={() => onEdit(u)}
+                <button
+                  onClick={() => onEdit(u)}
                   className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  title="Edit">
+                  title="Edit"
+                >
                   <Pencil size={13} />
                 </button>
                 {isSystemAdmin && (
-                  <button onClick={() => onTransfer(u)}
+                  <button
+                    onClick={() => onTransfer(u)}
                     className="rounded-md p-1.5 text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600"
-                    title="Transfer to another hospital">
+                    title="Transfer to another hospital"
+                  >
                     <ArrowRightLeft size={13} />
                   </button>
                 )}
-                {u.is_active && (
-                  <button onClick={() => onDeactivate(u)}
-                    className="rounded-md p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
-                    title="Deactivate">
-                    <Trash2 size={13} />
+                {u.hospital && (
+                  <button
+                    onClick={() => onDischarge(u)}
+                    className="rounded-md p-1.5 text-amber-400 hover:bg-amber-50 hover:text-amber-600"
+                    title="Remove from facility"
+                  >
+                    <UserMinus size={13} />
                   </button>
                 )}
               </>
-            )}
-            {u.id === meId && (
+            ) : (
               <span className="text-xs text-slate-400">(you)</span>
             )}
           </div>

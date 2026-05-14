@@ -156,6 +156,46 @@ class StaffViewSet(viewsets.ModelViewSet):
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=['post'], url_path='discharge')
+    def discharge(self, request, pk=None):
+        """Remove a staff member from their facility without deleting their account."""
+        instance = self.get_object()
+        reason = request.data.get('reason', '').strip()
+
+        if not reason:
+            return Response(
+                {'detail': 'A reason is required to remove a staff member from a facility.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if instance.pk == request.user.pk:
+            return Response(
+                {'detail': 'You cannot remove yourself from a facility.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not instance.hospital:
+            return Response(
+                {'detail': 'This user is not attached to any facility.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if request.user.role == Role.HOSPITAL_ADMIN and instance.role in (
+            Role.SYSTEM_ADMIN, Role.HOSPITAL_ADMIN
+        ):
+            return Response(
+                {'detail': 'Hospital admins cannot remove admin-level users.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        old_hospital = instance.hospital
+        instance.hospital = None
+        instance.save(update_fields=['hospital'])
+
+        log_action(
+            request.user, None,
+            f"removed {instance.email} from {old_hospital.name} — reason: {reason}",
+            category='staff', severity='warning', request=request,
+        )
+        return Response(UserSerializer(instance).data)
+
     @action(detail=True, methods=['post'], url_path='transfer',
             permission_classes=[IsSystemAdmin])
     def transfer(self, request, pk=None):

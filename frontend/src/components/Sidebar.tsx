@@ -10,8 +10,10 @@ import {
   ShieldCheck,
   Building2,
   UsersRound,
+  Download,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import type { UserRole } from '../types'
 
 interface NavItem {
@@ -61,6 +63,7 @@ const NAV: NavItem[] = [
 export function Sidebar() {
   const { user, signOut, hasRole, isSystemAdmin } = useAuth()
   const navigate = useNavigate()
+  const { canInstall, install } = useInstallPrompt()
 
   const handleSignOut = () => {
     signOut()
@@ -110,6 +113,15 @@ export function Sidebar() {
               <p className="truncate text-xs text-slate-400">{user.hospital_name}</p>
             )}
           </div>
+        )}
+        {canInstall && (
+          <button
+            onClick={install}
+            className="mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-sky-50 hover:text-sky-600"
+          >
+            <Download size={16} />
+            Install App
+          </button>
         )}
         <button
           onClick={handleSignOut}

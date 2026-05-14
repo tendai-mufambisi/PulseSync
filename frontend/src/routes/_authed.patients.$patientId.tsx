@@ -103,7 +103,13 @@ function PatientDetailPage() {
           </button>
           <div>
             <h1 className="text-xl font-semibold text-slate-900">{patient.full_name}</h1>
-            <p className="text-sm text-slate-500">National ID: {patient.national_id}</p>
+            <p className="text-sm text-slate-500">
+              {patient.national_id
+                ? `National ID: ${patient.national_id}`
+                : patient.registration_type === 'newborn'
+                ? 'Newborn — no National ID assigned yet'
+                : 'No National ID on record'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -274,7 +280,7 @@ function PatientDetailPage() {
       )}
 
       {/* Clinical Records */}
-      <ClinicalRecordsSection patientId={patient.id} records={patient.records} />
+      <ClinicalRecordsSection patientId={patient.id} records={patient.records ?? []} />
     </div>
   )
 }
