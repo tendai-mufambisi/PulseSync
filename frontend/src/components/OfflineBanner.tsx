@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { WifiOff, Wifi, RefreshCw, Download, UploadCloud, CheckCircle, AlertTriangle, DatabaseZap } from 'lucide-react'
 import { pendingCount } from '../lib/offlineQueue'
+import { useAuth } from '../hooks/useAuth'
 
 type BannerState =
   | 'hidden'
@@ -19,9 +20,20 @@ interface SyncResult {
 }
 
 export function OfflineBanner() {
+  const { user } = useAuth()
   const [state, setState] = useState<BannerState>('hidden')
   const [offlineSince, setOfflineSince] = useState<Date | null>(null)
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
+
+  // Clear user-session-specific banner states when the logged-in user changes
+  // so one user's sync errors don't bleed into the next user's session.
+  useEffect(() => {
+    setState((prev) => {
+      const sessionStates: BannerState[] = ['syncing', 'sync-complete', 'sync-failed', 'facility-cached']
+      return sessionStates.includes(prev) ? 'hidden' : prev
+    })
+    setSyncResult(null)
+  }, [user?.id])
 
   useEffect(() => {
     if (!navigator.onLine) {
