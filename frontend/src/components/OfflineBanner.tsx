@@ -111,7 +111,7 @@ export function OfflineBanner() {
 
   if (state === 'offline') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-amber-500 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-amber-500 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <WifiOff size={15} className="shrink-0" />
         <span>
           You are offline.{' '}
@@ -129,7 +129,7 @@ export function OfflineBanner() {
 
   if (state === 'syncing') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <UploadCloud size={15} className="shrink-0 animate-pulse" />
         Syncing patient records saved while offline…
       </div>
@@ -138,7 +138,7 @@ export function OfflineBanner() {
 
   if (state === 'sync-complete') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <CheckCircle size={15} className="shrink-0" />
         {syncResult?.synced === 1
           ? '1 patient record synced successfully.'
@@ -149,7 +149,7 @@ export function OfflineBanner() {
 
   if (state === 'sync-failed') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <AlertTriangle size={15} className="shrink-0" />
         <span>
           {syncResult?.synced ? `${syncResult.synced} synced. ` : ''}
@@ -169,7 +169,7 @@ export function OfflineBanner() {
 
   if (state === 'facility-cached') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <DatabaseZap size={15} className="shrink-0" />
         {syncResult?.synced === 1
           ? '1 patient record cached — available offline.'
@@ -180,7 +180,7 @@ export function OfflineBanner() {
 
   if (state === 'back-online') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <Wifi size={15} className="shrink-0" />
         Back online — data will refresh automatically.
       </div>
@@ -189,7 +189,7 @@ export function OfflineBanner() {
 
   if (state === 'update-available') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <RefreshCw size={15} className="shrink-0" />
         <span>A new version of PulseSync is available.</span>
         <button
@@ -210,7 +210,7 @@ export function OfflineBanner() {
 
   if (state === 'offline-ready') {
     return (
-      <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-md">
+      <div className="w-full z-50 flex items-center justify-center gap-3 bg-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-md">
         <Download size={15} className="shrink-0" />
         PulseSync is ready to work offline — patient data will be cached automatically.
       </div>

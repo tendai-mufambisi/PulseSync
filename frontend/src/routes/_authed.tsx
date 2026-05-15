@@ -30,7 +30,7 @@ function AuthedLayout() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <PageSpinner />
       </div>
     )
@@ -39,7 +39,7 @@ function AuthedLayout() {
   if (!user) return null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex flex-1 overflow-hidden bg-slate-50">
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-6">
         <Outlet />

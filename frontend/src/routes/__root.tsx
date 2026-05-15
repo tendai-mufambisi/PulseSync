@@ -5,8 +5,12 @@ import { OfflineBanner } from '../components/OfflineBanner'
 export const rootRoute = createRootRoute({
   component: () => (
     <AuthProvider>
-      <OfflineBanner />
-      <Outlet />
+      <div className="flex h-screen flex-col overflow-hidden">
+        <OfflineBanner />
+        <div className="flex flex-1 overflow-hidden">
+          <Outlet />
+        </div>
+      </div>
     </AuthProvider>
   ),
 })
