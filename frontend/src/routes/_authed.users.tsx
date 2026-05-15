@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 import api from '../lib/api'
 import type { AuthUser, UserRole, Hospital } from '../types'
 import { useAuth } from '../hooks/useAuth'
+import { useUnauthorizedLog } from '../hooks/useUnauthorizedLog'
 import { SkeletonList, ErrorState, EmptyState, Spinner } from '../components/States'
 import { UserPlus, X } from 'lucide-react'
 
@@ -19,8 +20,10 @@ const EMPTY_FORM = { email: '', full_name: '', password: '', role: 'nurse' as Us
 
 function UsersPage() {
   const { hasRole, user: me } = useAuth()
+  const isAllowed = hasRole('system_admin', 'hospital_admin')
+  useUnauthorizedLog(isAllowed, '/users')
 
-  if (!hasRole('system_admin', 'hospital_admin')) {
+  if (!isAllowed) {
     return (
       <div className="card mx-auto max-w-md p-8 text-center text-sm text-slate-500">
         User management is restricted to admins.

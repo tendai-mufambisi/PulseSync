@@ -2,6 +2,7 @@ import { createRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react'
 import { authedRoute } from './_authed'
 import { useAuth } from '../hooks/useAuth'
+import { useUnauthorizedLog } from '../hooks/useUnauthorizedLog'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Baby, UserRound, WifiOff } from 'lucide-react'
 import api from '../lib/api'
@@ -290,8 +291,10 @@ function FormActions({
 function RegisterPatientPage() {
   const { hasRole } = useAuth()
   const [step, setStep] = useState<Step>('select')
+  const isAllowed = hasRole('system_admin', 'hospital_admin', 'nurse', 'doctor')
+  useUnauthorizedLog(isAllowed, '/register')
 
-  if (!hasRole('system_admin', 'hospital_admin', 'nurse', 'doctor')) {
+  if (!isAllowed) {
     return (
       <div className="card mx-auto max-w-md p-8 text-center text-sm text-slate-500">
         You do not have permission to register patients.

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import api from '../lib/api'
 import type { AuditLog, Hospital } from '../types'
 import { useAuth } from '../hooks/useAuth'
+import { useUnauthorizedLog } from '../hooks/useUnauthorizedLog'
 import { SkeletonList, ErrorState, EmptyState } from '../components/States'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -16,8 +17,13 @@ export const auditLogsRoute = createRoute({
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: 'bg-blue-100 text-blue-700',
-  warning: 'bg-amber-100 text-amber-700',
-  critical: 'bg-red-100 text-red-700',
+  warning: 'bg-red-100 text-red-700',
+  critical: 'bg-red-200 text-red-900',
+}
+
+const SEVERITY_ROW_BG: Record<string, string> = {
+  warning: 'bg-red-50 border-l-4 border-l-red-400',
+  critical: 'bg-red-100 border-l-4 border-l-red-600',
 }
 
 const CATEGORIES = ['auth', 'patient', 'record', 'staff', 'emergency', 'system']
@@ -32,8 +38,10 @@ interface PagedResult {
 
 function AuditLogsPage() {
   const { hasRole } = useAuth()
+  const isAllowed = hasRole('system_admin', 'hospital_admin')
+  useUnauthorizedLog(isAllowed, '/audit-logs')
 
-  if (!hasRole('system_admin', 'hospital_admin')) {
+  if (!isAllowed) {
     return (
       <div className="card mx-auto max-w-md p-8 text-center text-sm text-slate-500">
         Audit logs are restricted to administrators.
@@ -171,7 +179,7 @@ function AuditLogsList() {
         {logs.map((log) => (
           <div
             key={log.id}
-            className="grid grid-cols-12 items-start gap-2 border-b border-slate-100 px-4 py-3 text-sm last:border-0"
+            className={`grid grid-cols-12 items-start gap-2 border-b border-slate-100 px-4 py-3 text-sm last:border-0 ${SEVERITY_ROW_BG[log.severity] ?? ''}`}
           >
             <span className="col-span-2 text-xs font-mono text-slate-500">
               {new Date(log.timestamp).toLocaleString()}

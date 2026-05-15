@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 import api from '../lib/api'
 import type { Hospital, FacilityType } from '../types'
 import { useAuth } from '../hooks/useAuth'
+import { useUnauthorizedLog } from '../hooks/useUnauthorizedLog'
 import { SkeletonList, ErrorState, EmptyState, Spinner } from '../components/States'
 import { Plus, X, Building2, Pencil, Check } from 'lucide-react'
 
@@ -27,6 +28,7 @@ const EMPTY = { name: '', facility_type: 'hospital' as FacilityType, facility_ty
 
 function HospitalsPage() {
   const { isSystemAdmin } = useAuth()
+  useUnauthorizedLog(isSystemAdmin, '/hospitals')
 
   if (!isSystemAdmin) {
     return (
