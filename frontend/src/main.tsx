@@ -1,22 +1,20 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
+import { get, set, del } from 'idb-keyval'
 import { registerSW } from 'virtual:pwa-register'
 import { routeTree } from './routeTree'
 import './styles.css'
 
 // ── Service Worker registration ───────────────────────────────────────────────
-// The service worker caches the app shell and patient API responses.
-// When a new version is deployed, the SW updates silently on next load.
-// In dev mode the SW is disabled (see vite.config.ts devOptions).
 registerSW({
   onOfflineReady() {
-    // App is fully cached and ready to work offline.
     window.dispatchEvent(new CustomEvent('pwa:offline-ready'))
   },
   onNeedRefresh() {
-    // A new version of the app is available (SW updated).
     window.dispatchEvent(new CustomEvent('pwa:update-available'))
   },
 })
@@ -26,27 +24,33 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
-        // Don't retry 4xx errors — only retry network failures.
         const status = (error as { response?: { status?: number } })?.response?.status
         if (status && status >= 400 && status < 500) return false
         return failureCount < 2
       },
-      // Keep data fresh for 2 minutes before background-refetching.
       staleTime: 2 * 60 * 1000,
-      // Hold unused data in memory for 24 hours.
-      // Combined with the service worker cache, this means offline users
-      // keep seeing data they've already loaded even after a page refresh.
       gcTime: 24 * 60 * 60 * 1000,
-      // If a query fails because we're offline, show whatever is in cache
-      // rather than an error screen.
       networkMode: 'offlineFirst',
     },
     mutations: {
-      // Mutations (writes) are always online-only — clinical data must persist
-      // to the server. The offline banner makes this clear to the user.
       networkMode: 'online',
     },
   },
+})
+
+// ── IndexedDB persister ───────────────────────────────────────────────────────
+// Serialises the React Query cache to IndexedDB so patient data survives a
+// full page refresh while offline. Only 'patients' and 'hospitals' queries
+// are persisted — auth state is excluded (tokens live in localStorage already).
+const idbPersister = createAsyncStoragePersister({
+  storage: {
+    getItem: (key) => get<string>(key).then((v) => v ?? null),
+    setItem: (key, value) => set(key, value),
+    removeItem: (key) => del(key),
+  },
+  key: 'pulsesync-query-cache',
+  // Throttle writes to IDB — at most once per 2 seconds.
+  throttleTime: 2000,
 })
 
 const router = createRouter({ routeTree })
@@ -59,8 +63,20 @@ declare module '@tanstack/react-router' {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: idbPersister,
+        maxAge: 24 * 60 * 60 * 1000,
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            const key = query.queryKey[0]
+            return key === 'patients' || key === 'hospitals'
+          },
+        },
+      }}
+    >
       <RouterProvider router={router} />
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </React.StrictMode>,
 )

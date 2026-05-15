@@ -40,6 +40,14 @@ api.interceptors.response.use(
       })
     }
 
+    // Can't refresh a token without a network connection — don't clear tokens
+    // or redirect. React Query's networkMode:'offlineFirst' will serve cached
+    // data instead of showing an error screen.
+    if (!navigator.onLine) {
+      refreshing = false
+      return Promise.reject(error)
+    }
+
     original._retry = true
     refreshing = true
     const refresh = getRefreshToken()
