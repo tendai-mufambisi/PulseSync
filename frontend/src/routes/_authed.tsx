@@ -16,7 +16,7 @@ export const authedRoute = createRoute({
 function AuthedLayout() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
-  useOfflineSync()
+  useOfflineSync(!!user)
   usePrefetchFacilityPatients(!!user)
 
   useEffect(() => {
