@@ -57,9 +57,12 @@ export function OfflineBanner() {
       setSyncResult({ synced, failed })
       if (failed.length > 0) {
         setState('sync-failed')
-      } else {
+      } else if (synced > 0) {
         setState('sync-complete')
         setTimeout(() => setState('hidden'), 6000)
+      } else {
+        // synced=0, no permanent failures — items still queued, retry silently
+        setState('hidden')
       }
     }
 

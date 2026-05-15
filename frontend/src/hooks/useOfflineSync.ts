@@ -75,15 +75,11 @@ export function useOfflineSync(enabled: boolean) {
         queryClient.invalidateQueries({ queryKey: ['patients'] })
       }
 
-      // Only fire the completion event when there is something meaningful to
-      // report. If synced=0 and nothing permanently failed, items are still in
-      // the queue and will retry silently on the next reconnect — showing a
-      // "0 patients synced" banner would be confusing.
-      if (synced > 0 || permanentlyFailed.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent('pwa:sync-complete', { detail: { synced, failed: permanentlyFailed } }),
-        )
-      }
+      // Always dispatch so the banner can exit the 'syncing' state.
+      // handleSyncComplete in OfflineBanner hides silently when synced=0 and failed=[].
+      window.dispatchEvent(
+        new CustomEvent('pwa:sync-complete', { detail: { synced, failed: permanentlyFailed } }),
+      )
     }
 
     if (navigator.onLine) flush()
